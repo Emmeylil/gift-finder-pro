@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Heart, Gift, Search, Sparkles } from "lucide-react";
+import { Heart, Gift, Search, Sparkles, AlertCircle } from "lucide-react";
 import { archetypeData, budgetRanges, getArchetypeEmoji } from "@/data/giftData";
 import {
   Select,
@@ -10,20 +10,19 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-
-interface GiftResult {
-  archetype: string;
-  category: string;
-  budget: string;
-  tagline: string;
-}
+import { ProductGrid } from "./ProductGrid";
+import { fetchJumiaProducts, jumiaCountries } from "@/services/jumiaService";
+import type { JumiaProduct } from "@/types/product";
 
 export const GiftFinder = () => {
   const [selectedArchetype, setSelectedArchetype] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedBudget, setSelectedBudget] = useState<string>("");
-  const [searchResult, setSearchResult] = useState<GiftResult | null>(null);
+  const [selectedCountry, setSelectedCountry] = useState<string>("NG");
+  const [products, setProducts] = useState<JumiaProduct[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const availableCategories = useMemo(() => {
     if (!selectedArchetype) return [];
@@ -38,25 +37,33 @@ export const GiftFinder = () => {
   const handleArchetypeChange = (value: string) => {
     setSelectedArchetype(value);
     setSelectedCategory("");
-    setSearchResult(null);
+    setProducts([]);
+    setHasSearched(false);
+    setSearchError(null);
   };
 
-  const handleFindGift = () => {
+  const handleFindGift = async () => {
     if (!selectedArchetype || !selectedCategory || !selectedBudget) return;
     
     setIsSearching(true);
+    setSearchError(null);
+    setHasSearched(true);
     
-    // Simulate search delay for better UX
-    setTimeout(() => {
-      const archetype = archetypeData.find((a) => a.archetype === selectedArchetype);
-      setSearchResult({
+    try {
+      const results = await fetchJumiaProducts({
         archetype: selectedArchetype,
         category: selectedCategory,
         budget: selectedBudget,
-        tagline: archetype?.tagline || "",
+        country: selectedCountry,
       });
+      setProducts(results);
+    } catch (error) {
+      console.error("Search failed:", error);
+      setSearchError("Failed to fetch products. Please ensure the Firebase function is deployed.");
+      setProducts([]);
+    } finally {
       setIsSearching(false);
-    }, 800);
+    }
   };
 
   const isFormComplete = selectedArchetype && selectedCategory && selectedBudget;
@@ -147,6 +154,24 @@ export const GiftFinder = () => {
             </SelectContent>
           </Select>
 
+          {/* Country Select */}
+          <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+            <SelectTrigger className="bg-card border-0 h-14 rounded-xl text-foreground font-medium shadow-card hover:shadow-soft transition-shadow">
+              <SelectValue placeholder="Country..." />
+            </SelectTrigger>
+            <SelectContent className="bg-card border-border rounded-xl">
+              {jumiaCountries.map((country) => (
+                <SelectItem
+                  key={country.code}
+                  value={country.code}
+                  className="py-3 cursor-pointer hover:bg-secondary rounded-lg"
+                >
+                  {country.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           {/* Find Gift Button */}
           <Button
             onClick={handleFindGift}
@@ -170,7 +195,7 @@ export const GiftFinder = () => {
 
       {/* Results Section */}
       <AnimatePresence>
-        {searchResult && (
+        {hasSearched && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -184,47 +209,34 @@ export const GiftFinder = () => {
                 <span className="font-semibold text-primary-foreground">Search Results</span>
               </div>
               <span className="text-primary-foreground/80 text-sm">
-                {getArchetypeEmoji(searchResult.archetype)} {searchResult.archetype} • {searchResult.category}
+                {getArchetypeEmoji(selectedArchetype)} {selectedArchetype} • {selectedCategory}
               </span>
             </div>
 
             {/* Results Content */}
-            <div className="bg-card rounded-b-xl p-8 shadow-card">
-              <div className="text-center py-12">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                  className="w-24 h-24 mx-auto mb-6 gift-finder-gradient rounded-full flex items-center justify-center shadow-button"
-                >
-                  <Gift className="w-12 h-12 text-primary-foreground" />
-                </motion.div>
-                
-                <h3 className="text-2xl font-bold text-foreground mb-2">
-                  Perfect Gift Found!
-                </h3>
-                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                  We've found amazing <span className="font-semibold text-primary">{searchResult.category}</span> gifts 
-                  for <span className="font-semibold text-accent">{searchResult.archetype}</span> within your budget of{" "}
-                  <span className="font-semibold">{searchResult.budget}</span>
-                </p>
-                
-                <div className="flex flex-wrap justify-center gap-3">
-                  <span className="px-4 py-2 bg-secondary rounded-full text-sm font-medium">
-                    {getArchetypeEmoji(searchResult.archetype)} {searchResult.archetype}
-                  </span>
-                  <span className="px-4 py-2 bg-secondary rounded-full text-sm font-medium">
-                    📦 {searchResult.category}
-                  </span>
-                  <span className="px-4 py-2 bg-secondary rounded-full text-sm font-medium">
-                    💰 {searchResult.budget}
-                  </span>
+            <div className="bg-card rounded-b-xl p-6 shadow-card">
+              {searchError ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-destructive/10 rounded-full flex items-center justify-center">
+                    <AlertCircle className="w-8 h-8 text-destructive" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-foreground mb-2">Search Failed</h3>
+                  <p className="text-muted-foreground text-sm max-w-md mx-auto">{searchError}</p>
                 </div>
-
-                <p className="mt-8 text-sm text-muted-foreground italic">
-                  "{searchResult.tagline}"
-                </p>
-              </div>
+              ) : isSearching ? (
+                <div className="text-center py-12">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    className="w-16 h-16 mx-auto mb-4 gift-finder-gradient rounded-full flex items-center justify-center"
+                  >
+                    <Gift className="w-8 h-8 text-primary-foreground" />
+                  </motion.div>
+                  <p className="text-muted-foreground">Searching for perfect gifts...</p>
+                </div>
+              ) : (
+                <ProductGrid products={products} />
+              )}
             </div>
           </motion.div>
         )}
