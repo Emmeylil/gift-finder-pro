@@ -100,7 +100,7 @@ function extractProducts(html: string): any[] {
     const scriptContent = match[1];
     scriptCount++;
 
-    // Check for products array in the script (handle multiple patterns)
+    // Pattern 1: Standard products array
     if (scriptContent && (
       scriptContent.includes('"products":[{') ||
       scriptContent.includes('"products": [{') ||
@@ -123,9 +123,60 @@ function extractProducts(html: string): any[] {
         return mobileProducts;
       }
     }
+
+    // Pattern 2: Next.js __NEXT_DATA__ format
+    if (scriptContent.includes('__NEXT_DATA__') || scriptContent.includes('id="__NEXT_DATA__"')) {
+      console.log('Found __NEXT_DATA__ script tag');
+      try {
+        const jsonMatch = scriptContent.match(/({[\s\S]*})/);
+        if (jsonMatch) {
+          const data = JSON.parse(jsonMatch[1]);
+          // Try to find products in various Next.js data structures
+          const products = data?.props?.pageProps?.products ||
+            data?.props?.initialState?.products ||
+            data?.query?.data?.products;
+          if (products && Array.isArray(products) && products.length > 0) {
+            console.log(`✓ Found ${products.length} products from __NEXT_DATA__`);
+            return products;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to parse __NEXT_DATA__:', e);
+      }
+    }
+
+    // Pattern 3: window.__INITIAL_STATE__ or similar
+    if (scriptContent.includes('__INITIAL_STATE__') || scriptContent.includes('window.STORE')) {
+      console.log('Found __INITIAL_STATE__ or window.STORE');
+      try {
+        // Try to extract JSON after the assignment
+        const stateMatch = scriptContent.match(/=\s*({[\s\S]*?});?\s*$/);
+        if (stateMatch) {
+          const data = JSON.parse(stateMatch[1]);
+          const products = data?.products || data?.catalog?.products || data?.items;
+          if (products && Array.isArray(products) && products.length > 0) {
+            console.log(`✓ Found ${products.length} products from __INITIAL_STATE__`);
+            return products;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to parse __INITIAL_STATE__:', e);
+      }
+    }
   }
 
   console.warn(`Checked ${scriptCount} script tags, ${productsScriptCount} contained 'products' keyword, but no products extracted`);
+
+  // Last resort: try to find any JSON structure with product-like data
+  console.log('Attempting last-resort product extraction...');
+  const allScripts = html.match(/<script[^>]*>([\s\S]*?)<\/script>/gi) || [];
+  for (const script of allScripts) {
+    if (script.includes('sku') && script.includes('price') && script.includes('name')) {
+      console.log('Found script with product-like fields (sku, price, name)');
+      // This might be a different format, but we can try to extract it
+    }
+  }
+
   return [];
 }
 
