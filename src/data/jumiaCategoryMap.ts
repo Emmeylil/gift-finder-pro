@@ -119,11 +119,11 @@ export const jumiaCategoryMap: Record<string, string> = {
 // Get budget price range string for Jumia URL
 export function getBudgetPriceRange(budgetLabel: string): string {
   const budgetMap: Record<string, string> = {
-    "Under ₦5,000": "100-5000",
-    "₦5,000 - ₦15,000": "5000-15000",
-    "₦15,000 - ₦50,000": "15000-50000",
-    "₦50,000 - ₦100,000": "50000-100000",
-    "₦100,000 - ₦500,000": "100000-500000",
+    "Under ₦5,000": "100-4999",
+    "₦5,000 - ₦15,000": "5000-14999",
+    "₦15,000 - ₦50,000": "15000-49999",
+    "₦50,000 - ₦100,000": "50000-99999",
+    "₦100,000 - ₦500,000": "100000-499999",
     "Over ₦500,000": "500000-10000000",
   };
   return budgetMap[budgetLabel] || "100-10000000";
