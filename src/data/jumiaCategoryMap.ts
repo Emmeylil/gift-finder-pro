@@ -73,7 +73,7 @@ export const jumiaCategoryMap: Record<string, string> = {
   "Home Esthetics": "home-decor",
   "Kitchen Appliances": "small-appliances",
   "Small Appliances": "small-appliances",
-  "Large Appliances": "large-appliances",
+  "Large Appliances": "home-improvement-appliances",
   "Appliances": "appliances",
   "Fridge/Freezers": "refrigerators",
   "Utensils": "kitchen-utensils",
