@@ -1,5 +1,5 @@
 import type { JumiaProduct, ProductSearchParams } from "@/types/product";
-import { jumiaCountries } from "./jumiaService";
+import { jumiaCategoryMap, getBudgetPriceRange } from "@/data/jumiaCategoryMap";
 
 const CORS_PROXY = "https://api.allorigins.win/raw?url=";
 
@@ -91,11 +91,11 @@ function extractProducts(html: string): any[] {
   return [];
 }
 
-// Build Jumia search URL
-function buildJumiaUrl(category: string, country: string): string {
-  const countryData = jumiaCountries.find(c => c.code === country);
-  const domain = countryData?.domain || ".com.ng";
-  return `https://www.jumia${domain}/catalog/?q=${encodeURIComponent(category)}`;
+// Build Jumia category URL with price filter
+function buildJumiaCategoryUrl(category: string, budget: string): string {
+  const categorySlug = jumiaCategoryMap[category] || category.toLowerCase().replace(/\s+/g, '-');
+  const priceRange = getBudgetPriceRange(budget);
+  return `https://www.jumia.com.ng/${categorySlug}/?price=${priceRange}#catalog-listing`;
 }
 
 // Map raw product data to JumiaProduct interface
@@ -114,16 +114,16 @@ function mapToJumiaProduct(product: any, baseUrl: string): JumiaProduct {
 export async function fetchJumiaProductsDirect(
   params: ProductSearchParams
 ): Promise<JumiaProduct[]> {
-  const { category, country = "NG" } = params;
+  const { category, budget } = params;
   
-  const countryData = jumiaCountries.find(c => c.code === country);
-  const domain = countryData?.domain || ".com.ng";
-  const baseUrl = `https://www.jumia${domain}`;
-  const searchUrl = buildJumiaUrl(category, country);
+  const baseUrl = "https://www.jumia.com.ng";
+  const categoryUrl = buildJumiaCategoryUrl(category, budget);
+  
+  console.log("Fetching from:", categoryUrl);
   
   try {
     // Use CORS proxy to fetch Jumia HTML
-    const proxyUrl = `${CORS_PROXY}${encodeURIComponent(searchUrl)}`;
+    const proxyUrl = `${CORS_PROXY}${encodeURIComponent(categoryUrl)}`;
     const response = await fetch(proxyUrl);
     
     if (!response.ok) {
