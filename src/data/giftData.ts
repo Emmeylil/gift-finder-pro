@@ -10,7 +10,7 @@ export const archetypeData: ArchetypeData[] = [
     day: "Feb 2",
     archetype: "Single Pringles",
     tagline: "Valentine deals made for you",
-    categories: ["Beauty & Spa Kits", "Fitness", "Fashion", "Fashion Accessories", "Home Decor", "Gadgets", "Headphones", "Smartwatches"]
+    categories: ["Beauty", "Spa Kits", "Fitness", "Fashion", "Fashion Accessories", "Home Decor", "Gadgets", "Headphones", "Smartwatches"]
   },
   {
     day: "Feb 3",

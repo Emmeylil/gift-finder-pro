@@ -4,12 +4,12 @@ export const jumiaCategoryMap: Record<string, string> = {
   "Phones": "phones-tablets",
   "Mobile Accessories": "mobile-accessories",
   "Phone Accessories": "mobile-accessories",
-  
+
   // Computing
   "Computing": "computing",
   "Computing Accessories": "computing-accessories",
   "Laptops": "laptops",
-  
+
   // Electronics
   "TV": "televisions",
   "Headphones": "headphones",
@@ -30,7 +30,7 @@ export const jumiaCategoryMap: Record<string, string> = {
   "Generators": "generators",
   "Solar Stations": "solar-inverter",
   "ACs": "air-conditioners",
-  
+
   // Fashion
   "Fashion": "fashion",
   "Men's Fashion": "mens-clothing",
@@ -51,23 +51,23 @@ export const jumiaCategoryMap: Record<string, string> = {
   "Cap": "caps",
   "Active Wear": "activewear",
   "Gym Leggings": "leggings",
-  
+
   // Beauty & Health
-  "Beauty": "beauty",
-  "Beauty & Spa Kits": "beauty",
+  "Beauty": "health-beauty",
+  "Spa Kits": "query:spa kit",
   "Skincare": "skin-care",
   "Men Skincare": "mens-skin-care",
   "Lipcare": "lip-care",
   "Perfumes": "fragrances",
   "Perfume": "fragrances",
   "Grooming Kit": "mens-grooming",
-  
+
   // Jewellery & Accessories
   "Jewellery": "jewellery",
   "Wristwatch": "watches",
   "Necklace": "necklaces",
   "Bracelet": "bracelets",
-  
+
   // Home & Kitchen
   "Home Decor": "home-decor",
   "Home Esthetics": "home-decor",
@@ -84,7 +84,7 @@ export const jumiaCategoryMap: Record<string, string> = {
   "Mug": "mugs",
   "Air Fryer": "air-fryers",
   "Smoothie Blender": "blenders",
-  
+
   // Fitness
   "Fitness": "sporting-goods",
   "Fitness Products": "sporting-goods",
@@ -94,13 +94,13 @@ export const jumiaCategoryMap: Record<string, string> = {
   "Yoga Mat": "yoga-mats",
   "Skipping Rope": "jump-ropes",
   "Treadmill": "treadmills",
-  
+
   // Gifts & Special Items
-  "Flowers": "artificial-flowers",
-  "Teddy Bears": "teddy-bears",
-  "Teddy Bear": "teddy-bears",
+  "Flowers": "query:flowers",
+  "Teddy Bears": "query:teddy bear",
+  "Teddy Bear": "query:teddy bear",
   "Artwork": "wall-art",
-  
+
   // Food & Drinks
   "Grocery": "groceries",
   "Beverage": "beverages",
@@ -108,10 +108,10 @@ export const jumiaCategoryMap: Record<string, string> = {
   "Whiskey": "whiskey",
   "Tequila": "tequila",
   "Vodka": "vodka",
-  
+
   // Kids
   "Toys": "toys",
-  
+
   // Default fallback
   "All Categories": "deals",
 };

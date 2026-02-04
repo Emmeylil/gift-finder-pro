@@ -44,12 +44,12 @@ function extractValidJsonMatches(input: string): any[] {
 // Desktop parser - extracts products from window.STORE
 function parseDesktopProducts(rawProducts: string): any[] {
   if (!rawProducts) return [];
-  
+
   const start = rawProducts.indexOf('"products":');
   if (start === -1) return [];
-  
+
   const products = '{' + rawProducts.substring(start);
-  
+
   // Find the closing bracket for the products array
   const closingBraceIndices: number[] = [];
   const pattern = /\}\]/g;
@@ -57,12 +57,12 @@ function parseDesktopProducts(rawProducts: string): any[] {
   while ((result = pattern.exec(products))) {
     closingBraceIndices.push(result.index);
   }
-  
+
   if (closingBraceIndices.length === 0) return [];
-  
+
   const lastIdx = closingBraceIndices[closingBraceIndices.length - 1];
   const jsonStr = products.substring(0, lastIdx + 2) + '}';
-  
+
   try {
     return JSON.parse(jsonStr).products || [];
   } catch {
@@ -73,14 +73,14 @@ function parseDesktopProducts(rawProducts: string): any[] {
 // Extract products from HTML response
 function extractProducts(html: string): any[] {
   if (!html) return [];
-  
+
   // Find script tags containing product data
   const scriptRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
   let match;
-  
+
   while ((match = scriptRegex.exec(html)) !== null) {
     const scriptContent = match[1];
-    
+
     // Check for products array in the script
     if (scriptContent && scriptContent.includes('"products":[{')) {
       // Try desktop format first
@@ -88,7 +88,7 @@ function extractProducts(html: string): any[] {
       if (desktopProducts.length > 0) {
         return desktopProducts;
       }
-      
+
       // Try mobile/viewData format
       const mobileProducts = extractValidJsonMatches(scriptContent);
       if (mobileProducts.length > 0) {
@@ -96,15 +96,28 @@ function extractProducts(html: string): any[] {
       }
     }
   }
-  
+
   return [];
 }
 
 // Build Jumia category URL with price filter
-function buildJumiaCategoryUrl(category: string, budget: string): string {
-  const categorySlug = jumiaCategoryMap[category] || category.toLowerCase().replace(/\s+/g, '-');
+// Build Jumia category URL with price filter
+function buildJumiaCategoryUrl(category: string, budget: string, page: number = 1): string {
+  const mapping = jumiaCategoryMap[category];
   const priceRange = getBudgetPriceRange(budget);
-  return `https://www.jumia.com.ng/${categorySlug}/?price=${priceRange}#catalog-listing`;
+  const pageParam = page > 1 ? `&page=${page}` : "";
+
+  if (mapping && mapping.startsWith("query:")) {
+    const query = mapping.replace("query:", "");
+    return `https://www.jumia.com.ng/catalog/?q=${encodeURIComponent(query)}&price=${priceRange}${pageParam}#catalog-listing`;
+  }
+
+  if (mapping) {
+    return `https://www.jumia.com.ng/${mapping}/?price=${priceRange}${pageParam}#catalog-listing`;
+  }
+
+  // Fallback to general search if category is not in map
+  return `https://www.jumia.com.ng/catalog/?q=${encodeURIComponent(category)}&price=${priceRange}${pageParam}#catalog-listing`;
 }
 
 // Map raw product data to JumiaProduct interface
@@ -123,7 +136,7 @@ function mapToJumiaProduct(product: any, baseUrl: string): JumiaProduct {
 async function fetchWithTimeout(url: string, timeoutMs: number = 15000): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  
+
   try {
     const response = await fetch(url, { signal: controller.signal });
     clearTimeout(timeoutId);
@@ -137,32 +150,32 @@ async function fetchWithTimeout(url: string, timeoutMs: number = 15000): Promise
 // Try fetching with multiple CORS proxies
 async function fetchWithFallback(targetUrl: string): Promise<string> {
   let lastError: Error | null = null;
-  
+
   for (const proxy of CORS_PROXIES) {
     try {
       const proxyUrl = `${proxy}${encodeURIComponent(targetUrl)}`;
       console.log(`Trying proxy: ${proxy.split('?')[0]}...`);
-      
+
       const response = await fetchWithTimeout(proxyUrl, 20000);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error: ${response.status}`);
       }
-      
+
       const html = await response.text();
       if (html && html.length > 1000) {
         console.log("Successfully fetched HTML");
         return html;
       }
       throw new Error("Response too short, likely blocked");
-      
+
     } catch (error) {
-      console.warn(`Proxy failed:`, error);
+      console.warn(`Proxy ${proxy.split('?')[0]} failed:`, error);
       lastError = error as Error;
       continue;
     }
   }
-  
+
   throw lastError || new Error("All CORS proxies failed");
 }
 
@@ -171,27 +184,43 @@ export async function fetchJumiaProductsDirect(
   params: ProductSearchParams
 ): Promise<JumiaProduct[]> {
   const { category, budget } = params;
-  
   const baseUrl = "https://www.jumia.com.ng";
-  const categoryUrl = buildJumiaCategoryUrl(category, budget);
-  
-  console.log("Fetching from:", categoryUrl);
-  
-  try {
-    const html = await fetchWithFallback(categoryUrl);
-    const products = extractProducts(html);
-    
-    if (!products || products.length === 0) {
-      console.warn("No products found in response");
-      return [];
+  const allProducts: JumiaProduct[] = [];
+  const seenSkus = new Set<string>();
+
+  console.log(`Starting multi-page fetch for: ${category}`);
+
+  for (let page = 1; page <= 5; page++) {
+    const categoryUrl = buildJumiaCategoryUrl(category, budget, page);
+    console.log(`Fetching page ${page} from:`, categoryUrl);
+
+    try {
+      const html = await fetchWithFallback(categoryUrl);
+      const rawProducts = extractProducts(html);
+
+      if (!rawProducts || rawProducts.length === 0) {
+        console.warn(`No products found on page ${page}, stopping.`);
+        break;
+      }
+
+      const mappedProducts = rawProducts.map(p => mapToJumiaProduct(p, baseUrl));
+
+      for (const product of mappedProducts) {
+        if (!seenSkus.has(product.sku)) {
+          seenSkus.add(product.sku);
+          allProducts.push(product);
+        }
+      }
+
+      console.log(`Page ${page}: Added ${mappedProducts.length} products (Total: ${allProducts.length})`);
+
+    } catch (error) {
+      console.error(`Failed to fetch Jumia products on page ${page}:`, error);
+      // If first page fails, throw. Otherwise, return what we have.
+      if (page === 1) throw error;
+      break;
     }
-    
-    return products
-      .slice(0, 20)
-      .map(p => mapToJumiaProduct(p, baseUrl));
-      
-  } catch (error) {
-    console.error("Failed to fetch Jumia products:", error);
-    throw error;
   }
+
+  return allProducts.slice(0, 100); // Return up to 100 aggregated products
 }

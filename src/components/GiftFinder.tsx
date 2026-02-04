@@ -18,7 +18,7 @@ export const GiftFinder = () => {
   const [selectedArchetype, setSelectedArchetype] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedBudget, setSelectedBudget] = useState<string>("");
-  
+
   const [products, setProducts] = useState<JumiaProduct[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -44,11 +44,11 @@ export const GiftFinder = () => {
 
   const handleFindGift = async () => {
     if (!selectedArchetype || !selectedCategory || !selectedBudget) return;
-    
+
     setIsSearching(true);
     setSearchError(null);
     setHasSearched(true);
-    
+
     try {
       const results = await fetchJumiaProductsDirect({
         archetype: selectedArchetype,
@@ -59,7 +59,7 @@ export const GiftFinder = () => {
       setProducts(results);
     } catch (error) {
       console.error("Search failed:", error);
-      setSearchError("Failed to fetch products. Please ensure the Firebase function is deployed.");
+      setSearchError("Unable to find gifts at the moment. This might be due to connection issues or temporary blocks. Please try again or choose a different category.");
       setProducts([]);
     } finally {
       setIsSearching(false);
