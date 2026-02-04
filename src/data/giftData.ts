@@ -22,7 +22,7 @@ export const archetypeData: ArchetypeData[] = [
     day: "Feb 4",
     archetype: "The 'Odogwu'",
     tagline: "Big energy deserves big spend",
-    categories: ["Starlink", "Large Appliances", "TV", "Generators", "Solar Stations", "ACs", "Fridge/Freezers", "High Fashion"]
+    categories: ["Network Routers", "Large Appliances", "TV", "Generators", "Solar Stations", "ACs", "Fridge/Freezers", "High Fashion"]
   },
   {
     day: "Feb 5",

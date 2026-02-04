@@ -26,7 +26,7 @@ export const jumiaCategoryMap: Record<string, string> = {
   "Powerbank": "power-banks",
   "Tech Gadgets": "electronics",
   "Gadgets": "electronics",
-  "Starlink": "networking-products",
+  "Network Routers": "computer-networking-routers",
   "Generators": "generators",
   "Solar Stations": "solar-inverter",
   "ACs": "air-conditioners",
@@ -120,7 +120,7 @@ export const jumiaCategoryMap: Record<string, string> = {
 export const categoryMinimumPrices: Record<string, number> = {
   // Premium Electronics
   "TV": 30000,
-  "Starlink": 200000,
+  "Network Routers": 5000,
   "Large Appliances": 20000,
   "Appliances": 10000,
   "Generators": 50000,
