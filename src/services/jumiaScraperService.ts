@@ -1,0 +1,149 @@
+import type { JumiaProduct, ProductSearchParams } from "@/types/product";
+import { jumiaCountries } from "./jumiaService";
+
+const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+
+// Extract valid JSON matches from script content (adapted from Finder class)
+function extractValidJsonMatches(input: string): any[] {
+  let matches: any[] = [];
+  let depth = 0;
+  let start = -1;
+
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+
+    if (char === '{') {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (char === '}') {
+      depth--;
+      if (depth === 0 && start !== -1) {
+        const jsonString = input.slice(start, i + 1);
+        try {
+          const parsed = JSON.parse(jsonString);
+          if (parsed.viewData) {
+            matches = parsed.viewData.products || [];
+            break;
+          }
+        } catch {
+          // Continue searching
+        }
+        start = -1;
+      }
+    }
+  }
+
+  return matches;
+}
+
+// Desktop parser - extracts products from window.STORE
+function parseDesktopProducts(rawProducts: string): any[] {
+  const start = rawProducts.indexOf('"products":');
+  if (start === -1) return [];
+  
+  const products = '{' + rawProducts.substring(start);
+  
+  // Find the closing bracket for the products array
+  const closingBraceIndices: number[] = [];
+  const pattern = /\}\]/g;
+  let result;
+  while ((result = pattern.exec(products))) {
+    closingBraceIndices.push(result.index);
+  }
+  
+  if (closingBraceIndices.length === 0) return [];
+  
+  const lastIdx = closingBraceIndices[closingBraceIndices.length - 1];
+  const jsonStr = products.substring(0, lastIdx + 2) + '}';
+  
+  try {
+    return JSON.parse(jsonStr).products || [];
+  } catch {
+    return [];
+  }
+}
+
+// Extract products from HTML response
+function extractProducts(html: string): any[] {
+  // Find script tags containing product data
+  const scriptRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
+  let match;
+  
+  while ((match = scriptRegex.exec(html)) !== null) {
+    const scriptContent = match[1];
+    
+    // Check for products array in the script
+    if (scriptContent.includes('"products":[{')) {
+      // Try desktop format first
+      const desktopProducts = parseDesktopProducts(scriptContent);
+      if (desktopProducts.length > 0) {
+        return desktopProducts;
+      }
+      
+      // Try mobile/viewData format
+      const mobileProducts = extractValidJsonMatches(scriptContent);
+      if (mobileProducts.length > 0) {
+        return mobileProducts;
+      }
+    }
+  }
+  
+  return [];
+}
+
+// Build Jumia search URL
+function buildJumiaUrl(category: string, country: string): string {
+  const countryData = jumiaCountries.find(c => c.code === country);
+  const domain = countryData?.domain || ".com.ng";
+  return `https://www.jumia${domain}/catalog/?q=${encodeURIComponent(category)}`;
+}
+
+// Map raw product data to JumiaProduct interface
+function mapToJumiaProduct(product: any, baseUrl: string): JumiaProduct {
+  return {
+    sku: product.sku || product.id || `sku-${Math.random().toString(36).substr(2, 9)}`,
+    displayName: product.displayName || product.name || "Unknown Product",
+    image: product.image || "",
+    url: product.url ? (product.url.startsWith('http') ? product.url : baseUrl + product.url) : baseUrl,
+    oldPrice: product.prices?.oldPrice || "",
+    newPrice: product.prices?.price || product.prices?.rawPrice || "",
+  };
+}
+
+// Main fetch function
+export async function fetchJumiaProductsDirect(
+  params: ProductSearchParams
+): Promise<JumiaProduct[]> {
+  const { category, country = "NG" } = params;
+  
+  const countryData = jumiaCountries.find(c => c.code === country);
+  const domain = countryData?.domain || ".com.ng";
+  const baseUrl = `https://www.jumia${domain}`;
+  const searchUrl = buildJumiaUrl(category, country);
+  
+  try {
+    // Use CORS proxy to fetch Jumia HTML
+    const proxyUrl = `${CORS_PROXY}${encodeURIComponent(searchUrl)}`;
+    const response = await fetch(proxyUrl);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error: ${response.status}`);
+    }
+    
+    const html = await response.text();
+    const products = extractProducts(html);
+    
+    if (products.length === 0) {
+      console.warn("No products found in response");
+      return [];
+    }
+    
+    return products
+      .slice(0, 20) // Limit to 20 products
+      .map(p => mapToJumiaProduct(p, baseUrl));
+      
+  } catch (error) {
+    console.error("Failed to fetch Jumia products:", error);
+    throw error;
+  }
+}
