@@ -45,27 +45,43 @@ function extractValidJsonMatches(input: string): any[] {
 function parseDesktopProducts(rawProducts: string): any[] {
   if (!rawProducts) return [];
 
-  const start = rawProducts.indexOf('"products":');
-  if (start === -1) return [];
+  // Try to find products with different patterns
+  let start = rawProducts.indexOf('"products":');
+  if (start === -1) {
+    start = rawProducts.indexOf('"products" :');
+  }
+  if (start === -1) {
+    start = rawProducts.indexOf("'products':");
+  }
+
+  if (start === -1) {
+    console.warn("Could not find 'products' key in script");
+    return [];
+  }
 
   const products = '{' + rawProducts.substring(start);
 
   // Find the closing bracket for the products array
   const closingBraceIndices: number[] = [];
-  const pattern = /\}\]/g;
+  const pattern = /\}]/g;
   let result;
   while ((result = pattern.exec(products))) {
     closingBraceIndices.push(result.index);
   }
 
-  if (closingBraceIndices.length === 0) return [];
+  if (closingBraceIndices.length === 0) {
+    console.warn("Could not find closing bracket for products array");
+    return [];
+  }
 
   const lastIdx = closingBraceIndices[closingBraceIndices.length - 1];
   const jsonStr = products.substring(0, lastIdx + 2) + '}';
 
   try {
-    return JSON.parse(jsonStr).products || [];
-  } catch {
+    const parsed = JSON.parse(jsonStr);
+    return parsed.products || [];
+  } catch (error) {
+    console.warn("Failed to parse products JSON:", error);
     return [];
   }
 }
@@ -77,26 +93,39 @@ function extractProducts(html: string): any[] {
   // Find script tags containing product data
   const scriptRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
   let match;
+  let scriptCount = 0;
+  let productsScriptCount = 0;
 
   while ((match = scriptRegex.exec(html)) !== null) {
     const scriptContent = match[1];
+    scriptCount++;
 
-    // Check for products array in the script
-    if (scriptContent && scriptContent.includes('"products":[{')) {
+    // Check for products array in the script (handle multiple patterns)
+    if (scriptContent && (
+      scriptContent.includes('"products":[{') ||
+      scriptContent.includes('"products": [{') ||
+      scriptContent.includes("'products':[{")
+    )) {
+      productsScriptCount++;
+      console.log(`Found script tag ${productsScriptCount} with products data`);
+
       // Try desktop format first
       const desktopProducts = parseDesktopProducts(scriptContent);
       if (desktopProducts.length > 0) {
+        console.log(`✓ Found ${desktopProducts.length} products using desktop parser`);
         return desktopProducts;
       }
 
       // Try mobile/viewData format
       const mobileProducts = extractValidJsonMatches(scriptContent);
       if (mobileProducts.length > 0) {
+        console.log(`✓ Found ${mobileProducts.length} products using mobile parser`);
         return mobileProducts;
       }
     }
   }
 
+  console.warn(`Checked ${scriptCount} script tags, ${productsScriptCount} contained 'products' keyword, but no products extracted`);
   return [];
 }
 
