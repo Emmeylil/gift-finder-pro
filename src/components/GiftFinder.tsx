@@ -11,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { ProductGrid } from "./ProductGrid";
-import { jumiaCountries } from "@/services/jumiaService";
 import { fetchJumiaProductsDirect } from "@/services/jumiaScraperService";
 import type { JumiaProduct } from "@/types/product";
 
@@ -19,7 +18,7 @@ export const GiftFinder = () => {
   const [selectedArchetype, setSelectedArchetype] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedBudget, setSelectedBudget] = useState<string>("");
-  const [selectedCountry, setSelectedCountry] = useState<string>("NG");
+  
   const [products, setProducts] = useState<JumiaProduct[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -55,7 +54,7 @@ export const GiftFinder = () => {
         archetype: selectedArchetype,
         category: selectedCategory,
         budget: selectedBudget,
-        country: selectedCountry,
+        country: "NG",
       });
       setProducts(results);
     } catch (error) {
@@ -150,24 +149,6 @@ export const GiftFinder = () => {
                   className="py-3 cursor-pointer hover:bg-secondary rounded-lg"
                 >
                   {range.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {/* Country Select */}
-          <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-            <SelectTrigger className="bg-card border-0 h-14 rounded-xl text-foreground font-medium shadow-card hover:shadow-soft transition-shadow">
-              <SelectValue placeholder="Country..." />
-            </SelectTrigger>
-            <SelectContent className="bg-card border-border rounded-xl">
-              {jumiaCountries.map((country) => (
-                <SelectItem
-                  key={country.code}
-                  value={country.code}
-                  className="py-3 cursor-pointer hover:bg-secondary rounded-lg"
-                >
-                  {country.label}
                 </SelectItem>
               ))}
             </SelectContent>
