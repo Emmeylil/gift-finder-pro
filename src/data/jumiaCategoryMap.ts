@@ -1,7 +1,7 @@
 // Map category names to Jumia URL slugs
 export const jumiaCategoryMap: Record<string, string> = {
   // Phones & Tablets
-  "Phones": "phones-tablets",
+  "Phones": "smartphones",
   "Mobile Accessories": "mobile-accessories",
   "Phone Accessories": "mobile-accessories",
 
@@ -121,6 +121,7 @@ export const categoryMinimumPrices: Record<string, number> = {
   // Premium Electronics
   "TV": 30000,
   "Network Routers": 5000,
+  "Phones": 20000,
   "Large Appliances": 20000,
   "Appliances": 10000,
   "Generators": 50000,
