@@ -45,7 +45,7 @@ export const HeroSection = () => {
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-accent/10 rounded-full mb-6">
             <Heart className="w-4 h-4 text-accent" fill="currentColor" />
-            <span className="text-sm font-medium text-accent">Valentine's Special 2024</span>
+            <span className="text-sm font-medium text-accent">Valentine's Special 2026</span>
           </div>
         </motion.div>
 
