@@ -1,7 +1,12 @@
 import type { JumiaProduct, ProductSearchParams } from "@/types/product";
 import { jumiaCategoryMap, getBudgetPriceRange } from "@/data/jumiaCategoryMap";
 
-const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+// Multiple CORS proxies for fallback
+const CORS_PROXIES = [
+  "https://api.allorigins.win/raw?url=",
+  "https://corsproxy.io/?",
+  "https://api.codetabs.com/v1/proxy?quest=",
+];
 
 // Extract valid JSON matches from script content (adapted from Finder class)
 function extractValidJsonMatches(input: string): any[] {
@@ -38,6 +43,8 @@ function extractValidJsonMatches(input: string): any[] {
 
 // Desktop parser - extracts products from window.STORE
 function parseDesktopProducts(rawProducts: string): any[] {
+  if (!rawProducts) return [];
+  
   const start = rawProducts.indexOf('"products":');
   if (start === -1) return [];
   
@@ -65,6 +72,8 @@ function parseDesktopProducts(rawProducts: string): any[] {
 
 // Extract products from HTML response
 function extractProducts(html: string): any[] {
+  if (!html) return [];
+  
   // Find script tags containing product data
   const scriptRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
   let match;
@@ -73,7 +82,7 @@ function extractProducts(html: string): any[] {
     const scriptContent = match[1];
     
     // Check for products array in the script
-    if (scriptContent.includes('"products":[{')) {
+    if (scriptContent && scriptContent.includes('"products":[{')) {
       // Try desktop format first
       const desktopProducts = parseDesktopProducts(scriptContent);
       if (desktopProducts.length > 0) {
@@ -110,6 +119,53 @@ function mapToJumiaProduct(product: any, baseUrl: string): JumiaProduct {
   };
 }
 
+// Fetch with timeout
+async function fetchWithTimeout(url: string, timeoutMs: number = 15000): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
+
+// Try fetching with multiple CORS proxies
+async function fetchWithFallback(targetUrl: string): Promise<string> {
+  let lastError: Error | null = null;
+  
+  for (const proxy of CORS_PROXIES) {
+    try {
+      const proxyUrl = `${proxy}${encodeURIComponent(targetUrl)}`;
+      console.log(`Trying proxy: ${proxy.split('?')[0]}...`);
+      
+      const response = await fetchWithTimeout(proxyUrl, 20000);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error: ${response.status}`);
+      }
+      
+      const html = await response.text();
+      if (html && html.length > 1000) {
+        console.log("Successfully fetched HTML");
+        return html;
+      }
+      throw new Error("Response too short, likely blocked");
+      
+    } catch (error) {
+      console.warn(`Proxy failed:`, error);
+      lastError = error as Error;
+      continue;
+    }
+  }
+  
+  throw lastError || new Error("All CORS proxies failed");
+}
+
 // Main fetch function
 export async function fetchJumiaProductsDirect(
   params: ProductSearchParams
@@ -122,24 +178,16 @@ export async function fetchJumiaProductsDirect(
   console.log("Fetching from:", categoryUrl);
   
   try {
-    // Use CORS proxy to fetch Jumia HTML
-    const proxyUrl = `${CORS_PROXY}${encodeURIComponent(categoryUrl)}`;
-    const response = await fetch(proxyUrl);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error: ${response.status}`);
-    }
-    
-    const html = await response.text();
+    const html = await fetchWithFallback(categoryUrl);
     const products = extractProducts(html);
     
-    if (products.length === 0) {
+    if (!products || products.length === 0) {
       console.warn("No products found in response");
       return [];
     }
     
     return products
-      .slice(0, 20) // Limit to 20 products
+      .slice(0, 20)
       .map(p => mapToJumiaProduct(p, baseUrl));
       
   } catch (error) {
