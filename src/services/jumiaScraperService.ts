@@ -101,10 +101,9 @@ function extractProducts(html: string): any[] {
 }
 
 // Build Jumia category URL with price filter
-// Build Jumia category URL with price filter
 function buildJumiaCategoryUrl(category: string, budget: string, page: number = 1): string {
   const mapping = jumiaCategoryMap[category];
-  const priceRange = getBudgetPriceRange(budget);
+  const priceRange = getBudgetPriceRange(budget, category);
   const pageParam = page > 1 ? `&page=${page}` : "";
 
   if (mapping && mapping.startsWith("query:")) {

@@ -116,15 +116,57 @@ export const jumiaCategoryMap: Record<string, string> = {
   "All Categories": "deals",
 };
 
-// Get budget price range string for Jumia URL
-export function getBudgetPriceRange(budgetLabel: string): string {
-  const budgetMap: Record<string, string> = {
-    "Under ₦5,000": "100-4999",
-    "₦5,000 - ₦15,000": "5000-14999",
-    "₦15,000 - ₦50,000": "15000-49999",
-    "₦50,000 - ₦100,000": "50000-99999",
-    "₦100,000 - ₦500,000": "100000-499999",
-    "Over ₦500,000": "500000-10000000",
+// Category-specific minimum prices (in Naira)
+export const categoryMinimumPrices: Record<string, number> = {
+  // Premium Electronics
+  "TV": 30000,
+  "Starlink": 200000,
+  "Large Appliances": 20000,
+  "Appliances": 10000,
+  "Generators": 50000,
+  "Solar Stations": 100000,
+  "ACs": 100000,
+  "Fridge/Freezers": 80000,
+
+  // High-end Fashion & Accessories
+  "High Fashion": 15000,
+  "Wristwatch": 5000,
+
+  // Computing
+  "Laptops": 80000,
+  "Computing": 50000,
+
+  // Kitchen Appliances
+  "Kitchen Appliances": 8000,
+  "Small Appliances": 5000,
+  "Air Fryer": 15000,
+  "Treadmill": 80000,
+
+  // Default for all other categories
+  "default": 100,
+};
+
+// Get budget price range string for Jumia URL with category-specific minimum
+export function getBudgetPriceRange(budgetLabel: string, category?: string): string {
+  // Get category-specific minimum or use default
+  const categoryMin = category ? (categoryMinimumPrices[category] || categoryMinimumPrices["default"]) : categoryMinimumPrices["default"];
+
+  const budgetMap: Record<string, { min: number; max: number }> = {
+    "Under ₦5,000": { min: categoryMin, max: 4999 },
+    "₦5,000 - ₦15,000": { min: Math.max(categoryMin, 5000), max: 14999 },
+    "₦15,000 - ₦50,000": { min: Math.max(categoryMin, 15000), max: 49999 },
+    "₦50,000 - ₦100,000": { min: Math.max(categoryMin, 50000), max: 99999 },
+    "₦100,000 - ₦500,000": { min: Math.max(categoryMin, 100000), max: 499999 },
+    "Over ₦500,000": { min: Math.max(categoryMin, 500000), max: 10000000 },
   };
-  return budgetMap[budgetLabel] || "100-10000000";
+
+  const range = budgetMap[budgetLabel];
+  if (!range) return "100-10000000";
+
+  // If category minimum is higher than the range maximum, use category min to a higher range
+  if (categoryMin > range.max) {
+    return `${categoryMin}-10000000`;
+  }
+
+  return `${range.min}-${range.max}`;
 }
