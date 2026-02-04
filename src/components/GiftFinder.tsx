@@ -11,7 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { ProductGrid } from "./ProductGrid";
-import { fetchJumiaProducts, jumiaCountries } from "@/services/jumiaService";
+import { jumiaCountries } from "@/services/jumiaService";
+import { fetchJumiaProductsDirect } from "@/services/jumiaScraperService";
 import type { JumiaProduct } from "@/types/product";
 
 export const GiftFinder = () => {
@@ -50,7 +51,7 @@ export const GiftFinder = () => {
     setHasSearched(true);
     
     try {
-      const results = await fetchJumiaProducts({
+      const results = await fetchJumiaProductsDirect({
         archetype: selectedArchetype,
         category: selectedCategory,
         budget: selectedBudget,
