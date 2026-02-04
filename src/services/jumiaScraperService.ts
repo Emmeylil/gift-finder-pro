@@ -1,11 +1,13 @@
 import type { JumiaProduct, ProductSearchParams } from "@/types/product";
 import { jumiaCategoryMap, getBudgetPriceRange } from "@/data/jumiaCategoryMap";
 
-// Multiple CORS proxies for fallback
+// Multiple CORS proxies for fallback (ordered by reliability)
 const CORS_PROXIES = [
-  "https://api.allorigins.win/raw?url=",
-  "https://corsproxy.io/?",
   "https://api.codetabs.com/v1/proxy?quest=",
+  "https://corsproxy.io/?",
+  "https://api.allorigins.win/raw?url=",
+  "https://thingproxy.freeboard.io/fetch/",
+  "https://cors-anywhere.herokuapp.com/",
 ];
 
 // Extract valid JSON matches from script content (adapted from Finder class)
@@ -212,7 +214,7 @@ function mapToJumiaProduct(product: any, baseUrl: string): JumiaProduct {
 }
 
 // Fetch with timeout
-async function fetchWithTimeout(url: string, timeoutMs: number = 15000): Promise<Response> {
+async function fetchWithTimeout(url: string, timeoutMs: number = 30000): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -235,7 +237,7 @@ async function fetchWithFallback(targetUrl: string): Promise<string> {
       const proxyUrl = `${proxy}${encodeURIComponent(targetUrl)}`;
       console.log(`Trying proxy: ${proxy.split('?')[0]}...`);
 
-      const response = await fetchWithTimeout(proxyUrl, 20000);
+      const response = await fetchWithTimeout(proxyUrl, 30000);
 
       if (!response.ok) {
         throw new Error(`HTTP error: ${response.status}`);
