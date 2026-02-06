@@ -1,4 +1,4 @@
-import type { JumiaProduct, ProductSearchParams } from "@/types/product";
+import type { JumiaProduct, ProductSearchParams, iSKU } from "@/types/product";
 import { jumiaCategoryMap, getBudgetPriceRange } from "@/data/jumiaCategoryMap";
 
 // Build Jumia category URL with price filter
@@ -20,20 +20,24 @@ function buildJumiaCategoryUrl(category: string, budget: string, page: number = 
   return `https://www.jumia.com.ng/catalog/?q=${encodeURIComponent(category)}&price=${priceRange}${pageParam}#catalog-listing`;
 }
 
-// Map raw product data to JumiaProduct interface
-function mapToJumiaProduct(product: any): JumiaProduct {
+// Map iSKU to simplified JumiaProduct for display
+function mapToJumiaProduct(sku: iSKU): JumiaProduct {
   return {
-    sku: product.sku || `sku-${Math.random().toString(36).substr(2, 9)}`,
-    displayName: product.displayName || "Unknown Product",
-    image: product.image || "",
-    url: product.url || "https://www.jumia.com.ng",
-    oldPrice: product.oldPrice || "",
-    newPrice: product.newPrice || "",
+    sku: sku.sku,
+    displayName: sku.displayName || sku.name,
+    brand: sku.brand,
+    image: sku.image,
+    url: sku.url.startsWith('http') ? sku.url : `https://www.jumia.com.ng${sku.url}`,
+    prices: sku.prices,
+    rating: sku.rating,
+    stock: sku.stock,
+    isBuyable: sku.isBuyable,
+    isShopExpress: sku.isShopExpress,
   };
 }
 
 // Fetch products from API endpoint
-async function fetchFromAPI(jumiaUrl: string, page: number): Promise<any[]> {
+async function fetchFromAPI(jumiaUrl: string, page: number): Promise<iSKU[]> {
   const apiUrl = `/api/jumia-products?url=${encodeURIComponent(jumiaUrl)}&page=${page}`;
 
   console.log(`Calling API: ${apiUrl}`);
