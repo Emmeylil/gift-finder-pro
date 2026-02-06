@@ -1,7 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Extract valid JSON matches from script content
+// Extract valid JSON matches from script content (mobile/viewData format)
 function extractValidJsonMatches(input: string): any[] {
+    if (!input) return [];
+    
     let matches: any[] = [];
     let depth = 0;
     let start = -1;
@@ -18,8 +20,8 @@ function extractValidJsonMatches(input: string): any[] {
                 const jsonString = input.slice(start, i + 1);
                 try {
                     const parsed = JSON.parse(jsonString);
-                    if (parsed.viewData) {
-                        matches = parsed.viewData.products || [];
+                    if (parsed.viewData && parsed.viewData.products) {
+                        matches = parsed.viewData.products;
                         break;
                     }
                 } catch {
@@ -33,11 +35,23 @@ function extractValidJsonMatches(input: string): any[] {
     return matches;
 }
 
-// Desktop parser - extracts products from window.STORE
+// Helper to find closing brace indices
+function braceIndices(str: string, brace: string): number[] {
+    const escaped = brace.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(escaped, 'gi');
+    const indices: number[] = [];
+    let result;
+    while ((result = regex.exec(str))) {
+        indices.push(result.index);
+    }
+    return indices;
+}
+
+// Desktop parser - extracts products from window.STORE or similar
 function parseDesktopProducts(rawProducts: string): any[] {
     if (!rawProducts) return [];
 
-    // Try to find products with different patterns
+    // Find the start of products array
     let start = rawProducts.indexOf('"products":');
     if (start === -1) {
         start = rawProducts.indexOf('"products" :');
@@ -51,14 +65,7 @@ function parseDesktopProducts(rawProducts: string): any[] {
     }
 
     const products = '{' + rawProducts.substring(start);
-
-    // Find the closing bracket for the products array
-    const closingBraceIndices: number[] = [];
-    const pattern = /\}]/g;
-    let result;
-    while ((result = pattern.exec(products))) {
-        closingBraceIndices.push(result.index);
-    }
+    const closingBraceIndices = braceIndices(products, '}]');
 
     if (closingBraceIndices.length === 0) {
         return [];
@@ -71,6 +78,7 @@ function parseDesktopProducts(rawProducts: string): any[] {
         const parsed = JSON.parse(jsonStr);
         return parsed.products || [];
     } catch (error) {
+        console.error('Failed to parse desktop products:', error);
         return [];
     }
 }
@@ -84,27 +92,46 @@ function extractProducts(html: string): any[] {
 
     while ((match = scriptRegex.exec(html)) !== null) {
         const scriptContent = match[1];
+        if (!scriptContent) continue;
 
-        // Pattern 1: Standard products array
-        if (scriptContent && (
+        // Check if script contains products data
+        if (
             scriptContent.includes('"products":[{') ||
             scriptContent.includes('"products": [{') ||
             scriptContent.includes("'products':[{")
-        )) {
-            // Try desktop format first
+        ) {
+            // Try desktop format first (window.STORE style)
             const desktopProducts = parseDesktopProducts(scriptContent);
             if (desktopProducts.length > 0) {
+                console.log(`Found ${desktopProducts.length} products via desktop parser`);
                 return desktopProducts;
             }
 
             // Try mobile/viewData format
             const mobileProducts = extractValidJsonMatches(scriptContent);
             if (mobileProducts.length > 0) {
+                console.log(`Found ${mobileProducts.length} products via mobile parser`);
                 return mobileProducts;
             }
         }
 
-        // Pattern 2: Next.js __NEXT_DATA__ format
+        // Pattern 2: __INITIAL_STATE__ format
+        if (scriptContent.includes('__INITIAL_STATE__')) {
+            try {
+                const stateMatch = scriptContent.match(/window\.__INITIAL_STATE__\s*=\s*({[\s\S]*?});?\s*(?:<\/script>|window\.|$)/);
+                if (stateMatch) {
+                    const data = JSON.parse(stateMatch[1]);
+                    if (data.products && Array.isArray(data.products)) {
+                        console.log(`Found ${data.products.length} products via __INITIAL_STATE__`);
+                        return data.products;
+                    }
+                }
+            } catch (e) {
+                // Continue to next pattern
+            }
+        }
+
+        // Pattern 3: Next.js __NEXT_DATA__ format
         if (scriptContent.includes('__NEXT_DATA__') || scriptContent.includes('id="__NEXT_DATA__"')) {
             try {
                 const jsonMatch = scriptContent.match(/({[\s\S]*})/);
@@ -114,6 +141,7 @@ function extractProducts(html: string): any[] {
                         data?.props?.initialState?.products ||
                         data?.query?.data?.products;
                     if (products && Array.isArray(products) && products.length > 0) {
+                        console.log(`Found ${products.length} products via __NEXT_DATA__`);
                         return products;
                     }
                 }
@@ -126,15 +154,35 @@ function extractProducts(html: string): any[] {
     return [];
 }
 
-// Map raw product data to clean format
-function mapToJumiaProduct(product: any, baseUrl: string): any {
+// Map raw product data to clean iSKU format
+function mapToSKU(product: any, baseUrl: string): any {
     return {
-        sku: product.sku || product.id || `sku-${Math.random().toString(36).substr(2, 9)}`,
-        displayName: product.displayName || product.name || "Unknown Product",
-        image: product.image || "",
+        sku: product.sku || `sku-${Math.random().toString(36).substr(2, 9)}`,
+        name: product.name || product.displayName || 'Unknown Product',
+        displayName: product.displayName || product.name || 'Unknown Product',
+        brand: product.brand || '',
+        sellerId: product.sellerId || 0,
+        isShopExpress: product.isShopExpress || false,
+        isShopGlobal: product.isShopGlobal || false,
+        categories: product.categories || [],
+        prices: {
+            rawPrice: product.prices?.rawPrice || '0',
+            price: product.prices?.price || '₦ 0',
+            priceEuro: product.prices?.priceEuro || '0',
+            taxEuro: product.prices?.taxEuro || '0',
+            oldPrice: product.prices?.oldPrice || '',
+            oldPriceEuro: product.prices?.oldPriceEuro || '0',
+            discount: product.prices?.discount || ''
+        },
+        stock: product.stock || { percent: 100, text: 'In Stock' },
+        rating: product.rating || { average: 0, totalRatings: 0 },
+        image: product.image || '',
         url: product.url ? (product.url.startsWith('http') ? product.url : baseUrl + product.url) : baseUrl,
-        oldPrice: product.prices?.oldPrice || "",
-        newPrice: product.prices?.price || product.prices?.rawPrice || "",
+        badges: product.badges || {},
+        isBuyable: product.isBuyable !== false,
+        shopExpress: product.shopExpress,
+        shopGlobal: product.shopGlobal,
+        selectedVariation: product.selectedVariation || product.sku
     };
 }
 
@@ -164,7 +212,7 @@ export default async function handler(
 
         console.log(`Fetching Jumia page: ${url}`);
 
-        // Fetch directly from server (no CORS issues!)
+        // Fetch directly from server (no CORS issues)
         const response = await fetch(url, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -197,7 +245,7 @@ export default async function handler(
         }
 
         const baseUrl = 'https://www.jumia.com.ng';
-        const products = rawProducts.map(p => mapToJumiaProduct(p, baseUrl));
+        const products = rawProducts.map(p => mapToSKU(p, baseUrl));
 
         console.log(`Successfully extracted ${products.length} products`);
 
