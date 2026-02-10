@@ -1,5 +1,6 @@
 import type { JumiaProduct, ProductSearchParams } from "@/types/product";
 import { jumiaCategoryMap, getBudgetPriceRange } from "@/data/jumiaCategoryMap";
+import { isFuzzyMatch } from "@/lib/searchUtils";
 
 // Build Jumia category URL with price filter
 function buildJumiaCategoryUrl(category: string, budget: string, page: number = 1): string {
@@ -23,12 +24,8 @@ function buildJumiaCategoryUrl(category: string, budget: string, page: number = 
 // Map raw product data to JumiaProduct interface
 function mapToJumiaProduct(product: any): JumiaProduct {
   return {
-    sku: product.sku || `sku-${Math.random().toString(36).substr(2, 9)}`,
-    displayName: product.displayName || "Unknown Product",
-    image: product.image || "",
-    url: product.url || "https://www.jumia.com.ng",
-    oldPrice: product.oldPrice || "",
-    newPrice: product.newPrice || "",
+    ...product,
+    sku: product.sku || `sku-${Math.random().toString(36).substring(2, 9)}`,
   };
 }
 
@@ -73,7 +70,13 @@ export async function fetchJumiaProductsDirect(
 
       const mappedProducts = rawProducts.map(p => mapToJumiaProduct(p));
 
-      for (const product of mappedProducts) {
+      // Filter by fuzzy match to ensure relevance (using 0.6 threshold for broader matching)
+      const relevantProducts = mappedProducts.filter(product =>
+        isFuzzyMatch(category, product.displayName, 0.6) ||
+        (product.brand && isFuzzyMatch(category, product.brand, 0.6))
+      );
+
+      for (const product of relevantProducts) {
         if (!seenSkus.has(product.sku)) {
           seenSkus.add(product.sku);
           allProducts.push(product);

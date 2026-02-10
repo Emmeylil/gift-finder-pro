@@ -128,13 +128,31 @@ function extractProducts(html: string): any[] {
 
 // Map raw product data to clean format
 function mapToJumiaProduct(product: any, baseUrl: string): any {
+    const prices = {
+        discount: product.prices?.discount || "",
+        oldPrice: product.prices?.oldPrice || "",
+        price: product.prices?.price || product.prices?.rawPrice || "",
+        rawPrice: product.prices?.rawPrice || "",
+    };
+
     return {
         sku: product.sku || product.id || `sku-${Math.random().toString(36).substr(2, 9)}`,
+        name: product.name || product.displayName || "",
         displayName: product.displayName || product.name || "Unknown Product",
+        brand: product.brand || "",
+        sellerId: product.sellerId || 0,
+        categories: product.categories || [],
+        prices: prices,
+        rating: product.rating || { average: 0, totalRatings: 0 },
         image: product.image || "",
         url: product.url ? (product.url.startsWith('http') ? product.url : baseUrl + product.url) : baseUrl,
-        oldPrice: product.prices?.oldPrice || "",
-        newPrice: product.prices?.price || product.prices?.rawPrice || "",
+        oldPrice: prices.oldPrice,
+        newPrice: prices.price,
+        badges: {
+            campaign: product.badges?.campaign || null,
+            main: product.badges?.main || null,
+        },
+        isBuyable: product.isBuyable !== undefined ? product.isBuyable : true,
     };
 }
 
@@ -167,10 +185,21 @@ export default async function handler(
         // Fetch directly from server (no CORS issues!)
         const response = await fetch(url, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'Cache-Control': 'no-cache',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Cache-Control': 'max-age=0',
+                'Connection': 'keep-alive',
+                'Referer': 'https://www.jumia.com.ng/',
+                'sec-ch-ua': '"Not A(Bread;7", "Chromium";"121", "Google Chrome";"121"',
+                'sec-ch-ua-mobile': '?0',
+                'sec-ch-ua-platform': '"Windows"',
+                'sec-fetch-dest': 'document',
+                'sec-fetch-mode': 'navigate',
+                'sec-fetch-site': 'same-origin',
+                'sec-fetch-user': '?1',
+                'upgrade-insecure-requests': '1',
             },
         });
 
