@@ -8,6 +8,7 @@ interface ProductCardProps {
 export const ProductCard = ({ product }: ProductCardProps) => {
   const discount = product.prices?.discount;
   const rating = product.rating;
+  const hasDiscount = !!(product.prices?.oldPrice && product.prices?.discount);
 
   return (
     <a
@@ -30,6 +31,14 @@ export const ProductCard = ({ product }: ProductCardProps) => {
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           loading="lazy"
         />
+
+        {/* Express Badge */}
+        {product.isShopExpress && (
+          <span className="absolute top-2 right-2 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-1 rounded-full shadow-button">
+            Express
+          </span>
+        )}
+
         {/* Rating Overlay */}
         {rating && rating.totalRatings > 0 && (
           <div className="absolute bottom-2 left-2 bg-card/80 backdrop-blur-sm rounded-lg px-2 py-1 flex items-center gap-1 shadow-card">
@@ -49,15 +58,25 @@ export const ProductCard = ({ product }: ProductCardProps) => {
         <h3 className="font-medium text-foreground text-sm line-clamp-2 mb-2 min-h-[2.5rem]">
           {product.displayName}
         </h3>
+
+        {product.rating && product.rating.totalRatings > 0 && (
+          <div className="flex items-center gap-1 mb-2">
+            <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+            <span className="text-xs text-muted-foreground">
+              {product.rating.average.toFixed(1)} ({product.rating.totalRatings})
+            </span>
+          </div>
+        )}
+
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            {product.oldPrice && (
+            {hasDiscount && (
               <p className="text-xs text-muted-foreground line-through">
-                {product.oldPrice}
+                {product.prices.oldPrice}
               </p>
             )}
             <p className="text-lg font-bold text-primary">
-              {product.newPrice}
+              {product.prices.price}
             </p>
           </div>
           <div className="p-2 rounded-full bg-secondary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">

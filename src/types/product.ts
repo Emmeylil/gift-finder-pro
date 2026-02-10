@@ -13,6 +13,11 @@ export interface iRating {
   totalRatings: number;
 }
 
+export interface iStock {
+  percent: number;
+  text: string;
+}
+
 export interface iCampaign {
   name: string;
   identifier: string;
@@ -28,6 +33,43 @@ export interface iMain {
   url: string;
 }
 
+export interface iShopExpress {
+  title: string;
+}
+
+export interface iShopGlobal {
+  identifier: string;
+  name: string;
+}
+
+// Full SKU interface matching Jumia's data structure
+export interface iSKU {
+  sku: string;
+  name: string;
+  details?: string;
+  displayName: string;
+  brand: string;
+  sellerId: number;
+  isShopExpress?: boolean;
+  isShopGlobal?: boolean;
+  categories: string[];
+  prices: iPrice;
+  tags?: string;
+  stock?: iStock;
+  rating?: iRating;
+  image: string;
+  url: string;
+  badges?: {
+    campaign?: iCampaign;
+    main?: iMain;
+  };
+  isBuyable: boolean;
+  shopExpress?: iShopExpress;
+  shopGlobal?: iShopGlobal;
+  selectedVariation?: string;
+}
+
+// Simplified product interface for display
 export interface JumiaProduct {
   sku: string;
   name?: string;
@@ -35,17 +77,19 @@ export interface JumiaProduct {
   brand?: string;
   sellerId?: number;
   categories?: string[];
-  prices?: iPrice;
+  prices: iPrice;
   rating?: iRating;
   image: string;
   url: string;
-  oldPrice: string;
-  newPrice: string;
+  oldPrice?: string;
+  newPrice?: string;
   badges?: {
     campaign?: iCampaign;
     main?: iMain;
   };
   isBuyable?: boolean;
+  isShopExpress?: boolean;
+  stock?: iStock;
 }
 
 export interface ProductSearchParams {
